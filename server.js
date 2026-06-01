@@ -6,34 +6,38 @@ app.use(express.json());
 
 const VERIFY_TOKEN = "12345";
 
-// Meta se copy karo
 const WHATSAPP_TOKEN = "EAAapGuDUfYsBRsrOJP8oP7CZCQBAVtQBUAcQNJZCUx3Cz9wicrZAu9sMMoORA9HqlWnZCdZBo3MXb92Ie7cPMwBZBcAobUpxZCXLreZCkbxpVfv8PHOtmg3bceiPJzUAeYd8G7E7ZA8MUGfOdV3SM7FHbTXRceKyZBSeJl3Gph42Qam63uQA4ZAFcZBgkmJLHY1ik0iLVjbuelrupbVZACmMIdvQ2fRQEyZBdL3GIJ1Rhy7156JD0UA644TgmbcsLhJWF93Ntcmli73hQ8rj1bRiNrN7tWydbiY5mGPf6epi2BfBUZD";
 const PHONE_NUMBER_ID = "1147795415080830";
 
 const studentData = {
-  "ST001": {
-    password: "1234",
-    name: "Rahul",
+  prateek: {
+    name: "Prateek",
     timetable: `
-Today's Timetable:
+Today's Schedule:
 09:00 AM - Maths
 10:00 AM - Physics
 11:00 AM - English
 `
   },
-  "ST002": {
-    password: "5678",
+  rahul: {
+    name: "Rahul",
+    timetable: `
+Today's Schedule:
+09:00 AM - Maths
+10:00 AM - Physics
+11:00 AM - English
+`
+  },
+  amit: {
     name: "Amit",
     timetable: `
-Today's Timetable:
+Today's Schedule:
 08:00 AM - Biology
 09:00 AM - Chemistry
 10:00 AM - Hindi
 `
   }
 };
-
-let userState = {};
 
 app.get("/", (req, res) => {
   res.send("WhatsApp Timetable Bot Running");
@@ -57,38 +61,9 @@ app.post("/webhook", async (req, res) => {
 
     if (message && message.type === "text") {
       const from = message.from;
-      const text = message.text.body.trim();
+      const text = message.text.body.trim().toLowerCase();
 
-      let reply = "";
-
-      if (!userState[from]) {
-        userState[from] = { step: "start" };
-      }
-
-      if (text.toLowerCase().includes("timetable") || text.toLowerCase().includes("today")) {
-        userState[from] = { step: "ask_student_id" };
-        reply = "Please enter your Student ID.";
-      } 
-      else if (userState[from].step === "ask_student_id") {
-        userState[from].studentId = text;
-        userState[from].step = "ask_password";
-        reply = "Please enter your password.";
-      } 
-      else if (userState[from].step === "ask_password") {
-        const studentId = userState[from].studentId;
-        const password = text;
-
-        if (studentData[studentId] && studentData[studentId].password === password) {
-          reply = `Hello ${studentData[studentId].name}\n\n${studentData[studentId].timetable}`;
-        } else {
-          reply = "Invalid Student ID or Password. Please type 'timetable' to try again.";
-        }
-
-        userState[from] = { step: "start" };
-      } 
-      else {
-        reply = "Hello! Type 'today timetable' to get your class schedule.";
-      }
+      let reply = getScheduleReply(text);
 
       await sendMessage(from, reply);
     }
@@ -99,6 +74,25 @@ app.post("/webhook", async (req, res) => {
     res.sendStatus(500);
   }
 });
+
+function getScheduleReply(text) {
+  const keywords = ["today", "schedule", "timetable", "slot", "class", "classes"];
+
+  const hasKeyword = keywords.some(word => text.includes(word));
+
+  if (!hasKeyword) {
+    return "Hello! Send message like: Today Prateek schedule";
+  }
+
+  for (const key in studentData) {
+    if (text.includes(key)) {
+      const student = studentData[key];
+      return `Hello ${student.name}\n\n${student.timetable}`;
+    }
+  }
+
+  return "Student not found. Please send like: Today Prateek schedule";
+}
 
 async function sendMessage(to, body) {
   await axios.post(
